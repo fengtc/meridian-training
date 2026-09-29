@@ -37,9 +37,10 @@ python -m pip check
 环境门禁：
 
 ```bash
-export TOKENIZER_ROOT=/data/tokenizers/official
-export DATA_ROOT=/data/source-datasets
-export MERIDIAN_RUN_ROOT=/data/meridian-training-runs
+export MERIDIAN_DATA_ROOT="$HOME/meridian-data"
+export TOKENIZER_ROOT="$MERIDIAN_DATA_ROOT/tokenizers/official"
+export DATA_ROOT="$MERIDIAN_DATA_ROOT/source-datasets"
+export MERIDIAN_RUN_ROOT="$MERIDIAN_DATA_ROOT/training-runs"
 ./scripts/preflight.sh
 ```
 

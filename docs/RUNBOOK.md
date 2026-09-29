@@ -1,6 +1,6 @@
 # Meridian 实操运行手册
 
-本文按 DGX Spark GB10、单张可见 GPU 编写。命令从空环境开始，默认使用 `/data` 保存数据和检查点；如果磁盘位置不同，只需要修改第二步的三个路径变量。项目代码参考 ZGCM 的模型设计，训练数据来自 OpenBMB/MiniCPM 数据集，模型从随机权重开始训练。
+本文按 DGX Spark GB10、单张可见 GPU 编写。命令从空环境开始，默认使用当前用户家目录下的 `~/meridian-data` 保存数据和检查点；如果磁盘位置不同，只需要修改第二步的路径变量。项目代码参考 ZGCM 的模型设计，训练数据来自 OpenBMB/MiniCPM 数据集，模型从随机权重开始训练。
 
 ## 1. 获取代码
 
@@ -55,13 +55,17 @@ python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple modelscope
 ```bash
 cd /home/paratera/meridian-training
 source .venv/bin/activate
-export TOKENIZER_ROOT=/data/tokenizers/official
-export DATA_ROOT=/data/source-datasets
-export MERIDIAN_RUN_ROOT=/data/meridian-training-runs
+export MERIDIAN_DATA_ROOT="$HOME/meridian-data"
+export TOKENIZER_ROOT="$MERIDIAN_DATA_ROOT/tokenizers/official"
+export DATA_ROOT="$MERIDIAN_DATA_ROOT/source-datasets"
+export MERIDIAN_RUN_ROOT="$MERIDIAN_DATA_ROOT/training-runs"
 mkdir -p "$TOKENIZER_ROOT" "$DATA_ROOT" "$MERIDIAN_RUN_ROOT"
 
-# 如果官方文件已经在此目录，直接复制；路径按实际位置修改。
-./scripts/download-data.sh tokenizer /home/ubuntu/ZGCM-Training-Lab/data/tokenizer/zgcm-1-official
+# 先查找官方文件所在目录，再把下面环境变量设置为实际目录。
+find "$HOME" -type f \( -name tokenizer.json -o -name chat_template.jinja \) 2>/dev/null | head -30
+export TOKENIZER_SOURCE="$HOME/ZGCM-Training-Lab/data/tokenizer/zgcm-1-official"
+test -s "$TOKENIZER_SOURCE/tokenizer.json" && test -s "$TOKENIZER_SOURCE/chat_template.jinja"
+./scripts/download-data.sh tokenizer "$TOKENIZER_SOURCE"
 ./scripts/preflight.sh
 ```
 
@@ -69,7 +73,7 @@ mkdir -p "$TOKENIZER_ROOT" "$DATA_ROOT" "$MERIDIAN_RUN_ROOT"
 
 ## 4. 下载数据集
 
-以下命令通过 ModelScope 下载 OpenBMB 数据集。预训练数据可能很大，请先确认 `/data` 剩余空间；正式训练只会读取达到目标 token 数所需的部分。
+以下命令通过 ModelScope 下载 OpenBMB 数据集。预训练数据可能很大，请先确认 `~/meridian-data` 所在磁盘剩余空间；正式训练只会读取达到目标 token 数所需的部分。
 
 ```bash
 ./scripts/download-data.sh ultra-fineweb
@@ -179,7 +183,7 @@ python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoint
 ## 8. 结果位置
 
 ```text
-/data/meridian-training-runs/
+~/meridian-data/training-runs/
 ├── stage1/checkpoints/stage1-final.pt
 ├── stage2/checkpoints/stage2-final.pt
 ├── sft/checkpoints/sft-final.pt
