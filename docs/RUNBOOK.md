@@ -34,10 +34,10 @@ python3 -c 'import torch; print(torch.__version__, torch.cuda.is_available(), to
 cd /home/paratera/meridian-training
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e '.[templates]'
-python -m pip install -e third_party/Megatron-LM --no-deps
-python -m pip install modelscope
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple --upgrade pip setuptools wheel
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e '.[templates]'
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e third_party/Megatron-LM --no-deps
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple modelscope
 ```
 
 检查环境：

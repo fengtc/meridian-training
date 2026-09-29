@@ -38,7 +38,7 @@ cd meridian-training
 
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -U pip setuptools wheel packaging ninja
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -U pip setuptools wheel packaging ninja
 ```
 
 然后安装适配 DGX Spark GB10、CUDA 和 ARM64 的 PyTorch。PyTorch 必须支持 CUDA、
@@ -46,8 +46,8 @@ BF16，并且要与 Spark 当前镜像和驱动匹配。PyTorch 安装完成后�
 
 ```bash
 ./scripts/bootstrap.sh
-python -m pip install -e '.[templates]'
-python -m pip install -e third_party/Megatron-LM --no-deps
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e '.[templates]'
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e third_party/Megatron-LM --no-deps
 python -m pip check
 ```
 

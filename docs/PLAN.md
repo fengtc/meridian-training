@@ -21,7 +21,7 @@ git clone --recurse-submodules https://github.com/fengtc/meridian-training.git
 cd meridian-training
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -U pip setuptools wheel packaging ninja
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -U pip setuptools wheel packaging ninja
 ```
 
 先安装适合 DGX Spark GB10 的 ARM64、CUDA、BF16 PyTorch。不要把 RTX 5090 的 x86_64
@@ -29,8 +29,8 @@ python -m pip install -U pip setuptools wheel packaging ninja
 
 ```bash
 ./scripts/bootstrap.sh
-python -m pip install -e '.[templates]'
-python -m pip install -e third_party/Megatron-LM --no-deps
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e '.[templates]'
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e third_party/Megatron-LM --no-deps
 python -m pip check
 ```
 

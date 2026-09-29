@@ -24,7 +24,7 @@ EOF
 }
 
 command -v modelscope >/dev/null || {
-  echo "未找到 modelscope，请先执行：python -m pip install modelscope" >&2
+  echo "未找到 modelscope，请先执行：python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple modelscope" >&2
   exit 1
 }
 
