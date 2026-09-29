@@ -41,8 +41,27 @@ source .venv/bin/activate
 python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -U pip setuptools wheel packaging ninja
 ```
 
-然后安装适配 DGX Spark GB10、CUDA 和 ARM64 的 PyTorch。PyTorch 必须支持 CUDA、
-BF16，并且要与 Spark 当前镜像和驱动匹配。PyTorch 安装完成后执行：
+然后安装已经在 DGX Spark GB10（GB10、CUDA 13.0、Python 3.12）验证过的 PyTorch：
+
+```bash
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple \
+  torch torchvision torchaudio
+```
+
+该命令应安装 `torch 2.14.0+cu130` 或与当前 Spark 镜像匹配的 CUDA 13 ARM64 版本。
+安装后先确认 CUDA 和 BF16，再安装项目依赖：
+
+```bash
+python - <<'PY'
+import torch
+print(torch.__version__)
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
+print(torch.cuda.is_bf16_supported())
+PY
+```
+
+PyTorch 必须支持 CUDA、BF16，并且要与 Spark 当前镜像和驱动匹配。确认通过后执行：
 
 ```bash
 ./scripts/bootstrap.sh

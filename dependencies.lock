@@ -2,5 +2,5 @@
 # git submodule 的 gitlink 是 Megatron-LM 的实际版本；升级时同步修改本文件。
 megatron_lm_repository=https://github.com/NVIDIA/Megatron-LM.git
 megatron_lm_ref=8ddd17988872764c1081ec6df14c2af9a964d859
-torch_policy=支持 CUDA、BF16 和 NCCL 的 DGX Spark GB10 PyTorch
+torch_policy=torch 2.14.0+cu130（ARM64，已在 DGX Spark GB10 验证；通过 USTC PyPI 源安装）
 python=>=3.10

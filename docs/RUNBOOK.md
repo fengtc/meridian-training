@@ -21,7 +21,7 @@ git submodule update --init --recursive
 
 ## 2. 创建 Python 环境
 
-DGX Spark 的 PyTorch 必须使用支持 GB10、CUDA 和 BF16 的版本。先确认机器镜像是否已经提供 PyTorch：
+DGX Spark 的 PyTorch 必须使用支持 GB10、CUDA 13 和 BF16 的 ARM64 版本。先确认机器镜像是否已经提供 PyTorch：
 
 ```bash
 python3 --version
@@ -35,6 +35,7 @@ cd /home/paratera/meridian-training
 python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
 python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple --upgrade pip setuptools wheel
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple torch torchvision torchaudio
 python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e '.[templates]'
 python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -e third_party/Megatron-LM --no-deps
 python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple modelscope

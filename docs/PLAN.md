@@ -24,8 +24,15 @@ source .venv/bin/activate
 python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple -U pip setuptools wheel packaging ninja
 ```
 
-先安装适合 DGX Spark GB10 的 ARM64、CUDA、BF16 PyTorch。不要把 RTX 5090 的 x86_64
-环境或 wheel 复制到 Spark。PyTorch 安装完成后：
+先安装已经在 DGX Spark GB10 验证过的 ARM64、CUDA 13、BF16 PyTorch。不要把 RTX 5090
+的 x86_64 环境或 wheel 复制到 Spark：
+
+```bash
+python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple \
+  torch torchvision torchaudio
+```
+
+确认 PyTorch 的 CUDA 和 BF16 可用后：
 
 ```bash
 ./scripts/bootstrap.sh
