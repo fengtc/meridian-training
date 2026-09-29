@@ -66,10 +66,10 @@ copy_tokenizer() {
 mkdir -p "$DATA_ROOT"
 case "$1" in
   tokenizer) [[ $# -eq 2 ]] || { usage; exit 2; }; copy_tokenizer "$2" ;;
-  ultra-fineweb) download OpenBMB/Ultra-FineWeb ultra-fineweb ;;
-  ultra-fineweb-l3) download OpenBMB/Ultra-FineWeb-L3 ultra-fineweb-l3 ;;
-  math) download OpenBMB/UltraData-Math ultradata-math ;;
-  code) download OpenBMB/UltraData-Code ultradata-code ;;
+  ultra-fineweb) download OpenBMB/Ultra-FineWeb ultra-fineweb "${@:2}" ;;
+  ultra-fineweb-l3) download OpenBMB/Ultra-FineWeb-L3 ultra-fineweb-l3 "${@:2}" ;;
+  math) download OpenBMB/UltraData-Math ultradata-math "${@:2}" ;;
+  code) download OpenBMB/UltraData-Code ultradata-code "${@:2}" ;;
   sft) download OpenBMB/UltraData-SFT-2605 ultradata-sft-2605 "${@:2}" ;;
   sft-small)
     # 每个首分片通常已足够支撑本项目 1M assistant-token 首轮 SFT。
@@ -80,8 +80,8 @@ case "$1" in
       --include 'data/no_think/Code/*part-000*.jsonl' \
       --include 'data/no_think/Math/*part-000*.jsonl'
     ;;
-  rl) download OpenBMB/UltraData-RL-2609 ultradata-rl-2609 ;;
-  rlpr) download OpenBMB/RLPR-Train-Dataset rlpr-train-dataset ;;
+  rl) download OpenBMB/UltraData-RL-2609 ultradata-rl-2609 "${@:2}" ;;
+  rlpr) download OpenBMB/RLPR-Train-Dataset rlpr-train-dataset "${@:2}" ;;
   repo) [[ $# -eq 2 ]] || { usage; exit 2; }; download "$2" "$(basename "$2")" ;;
   all)
     download OpenBMB/Ultra-FineWeb ultra-fineweb
