@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Meridian training runner for one or more CUDA processes."""
+"""Meridian 训练入口，支持一个或多个 CUDA 进程。"""
 from __future__ import annotations
 
 import argparse

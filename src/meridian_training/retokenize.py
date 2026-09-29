@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Retokenize source records with the configured official tokenizer.
+"""使用配置的官方 tokenizer 重新编码数据。
 
-The output is a fixed-length Megatron IndexedDataset. SFT additionally writes a
-parallel int8 mask dataset; 1 marks assistant content and EOS, 0 marks context.
+输出固定长度的 Megatron IndexedDataset。SFT 另外生成 int8 mask 数据集；1 表示
+assistant 内容和 EOS，0 表示上下文。
 """
 from __future__ import annotations
 

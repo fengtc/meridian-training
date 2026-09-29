@@ -1,5 +1,5 @@
 tokenizer:
-  # Override TOKENIZER_ROOT on the Spark host if the checkout is elsewhere.
+  # 如果 tokenizer 在其他路径，可通过 TOKENIZER_ROOT 覆盖。
   root: /data/tokenizers/official
   tokenizer_json: tokenizer.json
   chat_template: chat_template.jinja
@@ -9,10 +9,10 @@ tokenizer:
 model:
   config: configs/model.yaml
   random_init: true
-  load_minicpm5_weights: false
+  load_external_weights: false
 
 runtime:
-  # DGX Spark first pass: one visible GPU, one process.
+  # DGX Spark GB10 首轮：一个可见 GPU、一个进程。
   device: cuda
   world_size: 1
   micro_batch_size: 1

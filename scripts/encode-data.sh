@@ -3,12 +3,12 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 
 stage="${1:-}"
-case "$stage" in stage1|stage2|sft|rl) ;; *) echo "usage: $0 stage1|stage2|sft|rl" >&2; exit 2 ;; esac
+case "$stage" in stage1|stage2|sft|rl) ;; *) echo "用法：$0 stage1|stage2|sft|rl" >&2; exit 2 ;; esac
 
 input_var="DATA_${stage^^}_INPUT"
 input="${!input_var:-}"
 if [[ -z "$input" ]]; then
-  echo "set $input_var to a JSON/JSONL/Parquet source file or glob" >&2
+  echo "请设置 $input_var，值可以是 JSON、JSONL、Parquet 文件或 glob" >&2
   exit 2
 fi
 out="$MERIDIAN_RUN_ROOT/$stage"

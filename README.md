@@ -1,71 +1,81 @@
 # Meridian Training
 
-Meridian is a standalone, scalable language-model training repository. The
-project name and model names are independent of hardware, parameter count, and
-any upstream dataset provider:
+Meridian 是一个独立、可扩展的语言模型训练项目。项目名称和模型名称不绑定硬件、
+参数规模或数据集来源：
 
 ```text
-Base model:       Meridian-Base
-Instruction model: Meridian-Instruct
-Reasoning model:   Meridian-Reasoning
+基础模型：Meridian-Base
+指令模型：Meridian-Instruct
+推理模型：Meridian-Reasoning
 ```
 
-The repository is designed to grow from the first small validation run to
-larger models, larger corpora, and one or more CUDA GPUs. It does not encode a
-GPU model, a parameter count, or a temporary experiment size in its public
-names.
+本项目当前在 **DGX Spark GB10** 上执行训练。后续可以扩展模型层数、hidden size、
+训练数据量，并切换到一张或多张 GPU；项目名称和模型名称不需要改变。
 
-## Provenance
+## 来源说明
 
-The initial model recipe follows the published hybrid-attention design used as
-the architecture reference: 16 layers, hidden size 576, 9 attention heads, 3
-query groups, FFN size 1664, local attention window 128, global layers 4/9/15,
-2048 context, and BF16. The initial training data is sourced from MiniCPM
-training datasets and is retokenized with the supplied official tokenizer and
-chat template. No upstream model weights are loaded.
+当前基础模型采用公开混合注意力设计作为架构参考：16 层、hidden size 576、9 个
+attention heads、3 个 query groups、FFN 1664、局部窗口 128、全局层 4/9/15、
+上下文长度 2048、BF16。
 
-These provenance statements are part of the experiment record. They do not
-make Meridian a fork of an upstream model project, and the runtime code uses
-the neutral Meridian names above.
+训练数据来自 MiniCPM 数据集，使用配置的官方 tokenizer 和 `chat_template.jinja`
+重新编码。模型从随机权重开始，不加载任何上游模型权重。架构参考和数据来源会记录
+在实验文档中，运行代码和模型名称使用 Meridian 的中性命名。
 
-## Dependency boundary
+## 依赖边界
 
-Megatron-LM is the only model-training framework dependency. It is kept as a
-locked git submodule under `third_party/Megatron-LM`; the Meridian repository
-does not import code from another project checkout. The data encoder, model
-configuration, checkpoint contract, SFT masks, RL prompt metadata, and launch
-scripts live in this repository.
+Megatron-LM 是唯一的训练框架依赖，以锁定版本的 Git submodule 放在
+`third_party/Megatron-LM`。数据编码、模型配置、checkpoint 格式、SFT mask、RL
+prompt metadata 和训练脚本都属于本项目。
+
+在 DGX Spark GB10 上准备环境：
 
 ```bash
-git clone <meridian-repository-url> meridian-training
+git clone --recurse-submodules https://github.com/fengtc/meridian-training.git
 cd meridian-training
-git submodule update --init --recursive
-python -m pip install -e '.[templates]'
+
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip setuptools wheel packaging ninja
 ```
 
-Use a CUDA-enabled PyTorch build appropriate for the host before installing the
-Python package. Run `scripts/preflight.sh` before encoding data.
+然后安装适配 DGX Spark GB10、CUDA 和 ARM64 的 PyTorch。PyTorch 必须支持 CUDA、
+BF16，并且要与 Spark 当前镜像和驱动匹配。PyTorch 安装完成后执行：
 
-## Data interfaces
+```bash
+./scripts/bootstrap.sh
+python -m pip install -e '.[templates]'
+python -m pip install -e third_party/Megatron-LM --no-deps
+python -m pip check
+```
 
-The encoder accepts JSON, JSONL, and Parquet. It produces Megatron
-`IndexedDataset` files using the configured tokenizer:
+最后运行环境检查：
+
+```bash
+export TOKENIZER_ROOT=/data/tokenizers/official
+export DATA_ROOT=/data/source-datasets
+export MERIDIAN_RUN_ROOT=/data/meridian-training-runs
+./scripts/preflight.sh
+```
+
+## 数据产物
+
+编码器接受 JSON、JSONL 和 Parquet，使用配置的官方 tokenizer 生成 Megatron
+`IndexedDataset`：
 
 ```text
-pretrain:  <prefix>.bin / <prefix>.idx
-sft:       <prefix>.bin / <prefix>.idx plus <prefix>.mask.bin/.idx
-rl:        <prefix>.bin / <prefix>.idx plus <prefix>.metadata.jsonl
+预训练：<prefix>.bin / <prefix>.idx
+SFT：   <prefix>.bin / <prefix>.idx + <prefix>.mask.bin/.idx
+RL：    <prefix>.bin / <prefix>.idx + <prefix>.metadata.jsonl
 ```
 
-RL prompt metadata keeps `uuid`, `domain`, `source`, `query`, `ground_truth`,
-and prompt length outside the model input for reward verification.
+RL metadata 保存 `uuid`、`domain`、`source`、`query`、`ground_truth` 和 prompt 长度，
+供在线 rollout 和 reward verifier 使用。
 
-## Current launch shape
+## 当前训练入口
 
-The first run uses one process, micro-batch 1, gradient accumulation 2, and
-4096 tokens per optimizer step. The same scripts can be extended to multiple
-processes by changing the distributed launcher and data-parallel configuration;
-the repository name and model names remain unchanged.
+首轮在 DGX Spark GB10 上使用单进程、micro batch 1、gradient accumulation 2，
+每个 optimizer step 处理 4096 tokens。确认单 GPU 流程后，再扩展多 GPU 数据并行。
 
-See [docs/PLAN-cn.md](docs/PLAN-cn.md) for the current staged recipe and data
-provenance notes.
+完整阶段、数据来源和 checkpoint 续训规则见
+[docs/PLAN.md](docs/PLAN.md)。

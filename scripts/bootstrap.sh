@@ -3,5 +3,5 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 git submodule update --init --recursive
-echo "Megatron-LM revision: $(git -C third_party/Megatron-LM rev-parse HEAD)"
-echo "Install a CUDA-enabled PyTorch build separately, then: python -m pip install -e '.[templates]'"
+echo "Megatron-LM 版本：$(git -C third_party/Megatron-LM rev-parse HEAD)"
+echo "请先安装适合 DGX Spark GB10 的 CUDA/BF16 PyTorch，再执行：python -m pip install -e '.[templates]'"

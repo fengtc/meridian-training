@@ -1,8 +1,7 @@
 name: Meridian-Base
 status: PLAN_ONLY
 
-# The model is initialized from random weights. Source checkpoints are never
-# loaded during base-model training.
+# 模型从随机权重初始化，基础训练不加载外部 checkpoint。
 vocab_size: ${TOKENIZER_VOCAB_SIZE}
 parameters_target: 149500000
 num_layers: 16
@@ -17,7 +16,7 @@ rotary_base: 10000
 share_embeddings_and_output_weights: false
 attention:
   local_window: 128
-  # One-based layer numbers. All other layers use the local window.
+  # 从 1 开始计数，其余层使用局部窗口。
   global_layers_one_based: [4, 9, 15]
 precision: bf16
 sequence_length: 2048
