@@ -1,0 +1,8 @@
+# Dependency policy for the Meridian repository.
+# The submodule gitlink is the authoritative Megatron-LM revision after
+# `git submodule update --init --recursive`. Keep this file synchronized with
+# that gitlink when upgrading the dependency.
+megatron_lm_repository=https://github.com/NVIDIA/Megatron-LM.git
+megatron_lm_ref=8ddd17988872764c1081ec6df14c2af9a964d859
+torch_policy=CUDA-enabled PyTorch with BF16 and NCCL support
+python=>=3.10

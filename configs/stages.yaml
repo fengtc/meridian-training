@@ -1,0 +1,72 @@
+tokenizer:
+  # Override TOKENIZER_ROOT on the Spark host if the checkout is elsewhere.
+  root: /data/tokenizers/official
+  tokenizer_json: tokenizer.json
+  chat_template: chat_template.jinja
+  forbid_tokenizers:
+    - spark-32k
+
+model:
+  config: configs/model.yaml
+  random_init: true
+  load_minicpm5_weights: false
+
+runtime:
+  # DGX Spark first pass: one visible GPU, one process.
+  device: cuda
+  world_size: 1
+  micro_batch_size: 1
+  gradient_accumulation: 2
+  tokens_per_step: 4096
+  dtype: bf16
+  optimizer: AdamW
+  weight_decay: 0.1
+  gradient_clip: 1.0
+  peak_learning_rate: 0.0003
+  minimum_learning_rate: 0.00003
+  schedule: cosine
+  warmup_ratio: 0.02
+  seed: 42
+
+stages:
+  stage1:
+    target_tokens: 20000000
+    expected_steps: 4883
+    output_prefix: data/stage1_text_document
+    checkpoint: experiments/stage1/checkpoints/stage1-final.pt
+    sources:
+      - ultra-fineweb
+      - chinese-general-text
+      - small-code
+      - small-knowledge
+  stage2:
+    target_tokens: 80000000
+    expected_steps: 19532
+    output_prefix: data/stage2_text_document
+    resume_from: experiments/stage1/checkpoints/stage1-final.pt
+    checkpoint: experiments/stage2/checkpoints/stage2-final.pt
+    sources:
+      - ultra-fineweb-l3
+      - ultradata-math
+      - code
+      - knowledge
+      - chinese-english-mixed
+  sft:
+    target_assistant_tokens: 1000000
+    output_prefix: data/sft_assistant_document
+    resume_from: experiments/stage2/checkpoints/stage2-final.pt
+    checkpoint: experiments/sft/checkpoints/sft-final.pt
+    source: UltraData-SFT-2605
+    mix:
+      Chinese-general: 0.40
+      IF: 0.20
+      Knowledge: 0.15
+      Code: 0.15
+      Math: 0.10
+  rl:
+    target_samples: 85995
+    output_prefix: data/rl_prompt_document
+    prompt_format: official_chat_template_with_generation_prompt
+    metadata: data/rl_prompt_document.metadata.jsonl
+    source: UltraData-RL-2609
+    configs: [Math, Knowledge, Long-Context, Code]

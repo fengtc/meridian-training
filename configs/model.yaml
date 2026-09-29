@@ -1,0 +1,28 @@
+name: Meridian-Base
+status: PLAN_ONLY
+
+# The model is initialized from random weights. Source checkpoints are never
+# loaded during base-model training.
+vocab_size: ${TOKENIZER_VOCAB_SIZE}
+parameters_target: 149500000
+num_layers: 16
+hidden_size: 576
+num_attention_heads: 9
+num_query_groups: 3
+ffn_hidden_size: 1664
+normalization: RMSNorm
+activation: SwiGLU
+position_embedding: RoPE
+rotary_base: 10000
+share_embeddings_and_output_weights: false
+attention:
+  local_window: 128
+  # One-based layer numbers. All other layers use the local window.
+  global_layers_one_based: [4, 9, 15]
+precision: bf16
+sequence_length: 2048
+parallelism:
+  tensor_parallel: 1
+  pipeline_parallel: 1
+  context_parallel: 1
+  data_parallel: 1

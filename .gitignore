@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+data/*.bin
+data/*.idx
+data/*.mask.bin
+data/*.mask.idx
+data/*.metadata.jsonl
+experiments/*/
+logs/
