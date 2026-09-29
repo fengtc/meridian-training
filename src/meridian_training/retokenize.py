@@ -25,10 +25,17 @@ from megatron.core.datasets.indexed_dataset import IndexedDatasetBuilder
 
 
 def files(pattern: str) -> list[Path]:
-    paths = [Path(x) for x in glob.glob(pattern, recursive=True)]
-    if not paths and Path(pattern).is_file():
-        paths = [Path(pattern)]
-    return sorted(paths)
+    # 允许用逗号合并多个 ModelScope 数据集目录，例如
+    # ``a/**/*.jsonl,b/**/*.parquet``。
+    paths: list[Path] = []
+    for part in (x.strip() for x in pattern.split(",")):
+        if not part:
+            continue
+        matches = [Path(x) for x in glob.glob(part, recursive=True)]
+        if not matches and Path(part).is_file():
+            matches = [Path(part)]
+        paths.extend(matches)
+    return sorted(set(paths))
 
 
 def records(pattern: str) -> Iterable[dict]:

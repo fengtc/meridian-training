@@ -1,5 +1,7 @@
 # Meridian Training
 
+完整的 DGX Spark GB10 中文实操流程见：[docs/RUNBOOK.md](docs/RUNBOOK.md)。
+
 Meridian 是一个独立、可扩展的语言模型训练项目。项目名称和模型名称不绑定硬件、
 参数规模或数据集来源：
 
