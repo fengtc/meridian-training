@@ -14,9 +14,13 @@ usage() {
   scripts/download-data.sh math
   scripts/download-data.sh code
   scripts/download-data.sh sft
-  scripts/download-data.sh sft-small
+  scripts/download-data.sh stage1-target
+  scripts/download-data.sh stage2-target
+  scripts/download-data.sh sft-target
+  scripts/download-data.sh rl-target
   scripts/download-data.sh rl
   scripts/download-data.sh rlpr
+  scripts/download-data.sh all-target
   scripts/download-data.sh all
 
 也可以只下载指定文件匹配项：
@@ -52,6 +56,14 @@ download() {
   "${args[@]}"
 }
 
+download_first_shards() {
+  local repo="$1"; local name="$2"
+  download "$repo" "$name" \
+    --include '*part-000*.jsonl' \
+    --include '*part-001*.jsonl' \
+    --include '*part-002*.jsonl'
+}
+
 copy_tokenizer() {
   local source="$1"
   [[ -s "$source/tokenizer.json" ]] || { echo "缺少 $source/tokenizer.json" >&2; exit 1; }
@@ -71,15 +83,32 @@ case "$1" in
   math) download OpenBMB/UltraData-Math ultradata-math "${@:2}" ;;
   code) download OpenBMB/UltraData-Code ultradata-code "${@:2}" ;;
   sft) download OpenBMB/UltraData-SFT-2605 ultradata-sft-2605 "${@:2}" ;;
-  sft-small)
-    # 每个首分片通常已足够支撑本项目 1M assistant-token 首轮 SFT。
+  sft-target|sft-small)
+    # 每个类别的前三个分片用于本项目 1M assistant-token SFT 目标。
     download OpenBMB/UltraData-SFT-2605 ultradata-sft-2605 \
       --include 'data/no_think/Chinese-general/*part-000*.jsonl' \
+      --include 'data/no_think/Chinese-general/*part-001*.jsonl' \
+      --include 'data/no_think/Chinese-general/*part-002*.jsonl' \
       --include 'data/no_think/IF/*part-000*.jsonl' \
+      --include 'data/no_think/IF/*part-001*.jsonl' \
+      --include 'data/no_think/IF/*part-002*.jsonl' \
       --include 'data/no_think/Knowledge/*part-000*.jsonl' \
+      --include 'data/no_think/Knowledge/*part-001*.jsonl' \
+      --include 'data/no_think/Knowledge/*part-002*.jsonl' \
       --include 'data/no_think/Code/*part-000*.jsonl' \
-      --include 'data/no_think/Math/*part-000*.jsonl'
+      --include 'data/no_think/Code/*part-001*.jsonl' \
+      --include 'data/no_think/Code/*part-002*.jsonl' \
+      --include 'data/no_think/Math/*part-000*.jsonl' \
+      --include 'data/no_think/Math/*part-001*.jsonl' \
+      --include 'data/no_think/Math/*part-002*.jsonl'
     ;;
+  stage1-target|stage1-small) download_first_shards OpenBMB/Ultra-FineWeb ultra-fineweb ;;
+  stage2-target|stage2-small)
+    download_first_shards OpenBMB/Ultra-FineWeb-L3 ultra-fineweb-l3
+    download_first_shards OpenBMB/UltraData-Math ultradata-math
+    download_first_shards OpenBMB/UltraData-Code ultradata-code
+    ;;
+  rl-target|rl-small) download OpenBMB/UltraData-RL-2609 ultradata-rl-2609 ;;
   rl) download OpenBMB/UltraData-RL-2609 ultradata-rl-2609 "${@:2}" ;;
   rlpr) download OpenBMB/RLPR-Train-Dataset rlpr-train-dataset "${@:2}" ;;
   repo) [[ $# -eq 2 ]] || { usage; exit 2; }; download "$2" "$(basename "$2")" ;;
@@ -90,6 +119,29 @@ case "$1" in
     download OpenBMB/UltraData-Code ultradata-code
     download OpenBMB/UltraData-SFT-2605 ultradata-sft-2605
     download OpenBMB/UltraData-RL-2609 ultradata-rl-2609
+    ;;
+  all-target|all-small)
+    download_first_shards OpenBMB/Ultra-FineWeb ultra-fineweb
+    download_first_shards OpenBMB/Ultra-FineWeb-L3 ultra-fineweb-l3
+    download_first_shards OpenBMB/UltraData-Math ultradata-math
+    download_first_shards OpenBMB/UltraData-Code ultradata-code
+    download OpenBMB/UltraData-SFT-2605 ultradata-sft-2605 \
+      --include 'data/no_think/Chinese-general/*part-000*.jsonl' \
+      --include 'data/no_think/Chinese-general/*part-001*.jsonl' \
+      --include 'data/no_think/Chinese-general/*part-002*.jsonl' \
+      --include 'data/no_think/IF/*part-000*.jsonl' \
+      --include 'data/no_think/IF/*part-001*.jsonl' \
+      --include 'data/no_think/IF/*part-002*.jsonl' \
+      --include 'data/no_think/Knowledge/*part-000*.jsonl' \
+      --include 'data/no_think/Knowledge/*part-001*.jsonl' \
+      --include 'data/no_think/Knowledge/*part-002*.jsonl' \
+      --include 'data/no_think/Code/*part-000*.jsonl' \
+      --include 'data/no_think/Code/*part-001*.jsonl' \
+      --include 'data/no_think/Code/*part-002*.jsonl' \
+      --include 'data/no_think/Math/*part-000*.jsonl' \
+      --include 'data/no_think/Math/*part-001*.jsonl' \
+      --include 'data/no_think/Math/*part-002*.jsonl'
+    download_first_shards OpenBMB/UltraData-RL-2609 ultradata-rl-2609
     ;;
   *) usage; exit 2 ;;
 esac
