@@ -120,12 +120,18 @@ def main():
         for _ in range(a.group_size):
             generated, new_count = sample_completion(model, prompt, seq, eos, a.max_new_tokens, a.temperature, device)
             text = tok.decode(generated[len(prompt):], skip_special_tokens=False)
-            result = reward_fn(text, row['ground_truth']); group.append((generated, len(prompt), result.reward)); rewards.append(result.reward)
+            result = reward_fn(text, row['ground_truth'])
+            old_logp = token_logprobs(model, generated, len(prompt), seq, device).detach()
+            group.append((generated, len(prompt), old_logp, result.reward)); rewards.append(result.reward)
         mean = float(np.mean(rewards)); std = float(np.std(rewards)); advantages = [(r - mean) / max(std, 1e-6) for r in rewards]
         optimizer.zero_grad(set_to_none=True); losses = []
-        for (ids, prompt_len, _), advantage in zip(group, advantages):
-            lp = token_logprobs(model, ids, prompt_len, seq, device).mean()
-            losses.append(-lp * float(advantage) / a.group_size)
+        for (ids, prompt_len, old_logp, _), advantage in zip(group, advantages):
+            new_logp = token_logprobs(model, ids, prompt_len, seq, device)
+            ratio = torch.exp(new_logp - old_logp)
+            clipped = ratio.clamp(1.0 - 0.2, 1.0 + 0.2)
+            adv = torch.as_tensor(float(advantage), device=device)
+            surrogate = torch.minimum(ratio * adv, clipped * adv)
+            losses.append(-surrogate.mean() / a.group_size)
         loss = torch.stack(losses).sum(); loss.backward(); torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0); optimizer.step()
         record = {'step': step + 1, 'reward_mean': mean, 'reward_std': std, 'rewards': rewards, 'loss': float(loss.detach()), 'rank': rank}
         if rank == 0: print(json.dumps(record), flush=True); (out / 'metrics.jsonl').open('a').write(json.dumps(record) + '\n')
