@@ -8,7 +8,7 @@ import pyarrow.parquet as pq
 from tokenizers import Tokenizer
 
 ROOT = Path('/home/ubuntu/meridian-data')
-OFFICIAL = Path('/home/ubuntu/ZGCM-Training-Lab/data/tokenizer/zgcm-1-official')
+OFFICIAL = Path('/home/ubuntu/ZGCM-Training-Lab/data/tokenizer')
 dest = ROOT / 'tokenizers/official'
 dest.mkdir(parents=True, exist_ok=True)
 for name in ['tokenizer.json', 'chat_template.jinja', 'tokenizer_config.json', 'LICENSE', 'README.md']:

@@ -19,7 +19,7 @@ Meridian 是一个独立、可扩展的语言模型训练项目。项目名称�
 当前基础模型采用 24 层、hidden size 1024、16 个 attention heads、4 个 query
 groups、FFN 3840、局部窗口 128、全局层 4/9/15/21、上下文长度 2048、BF16。
 
-训练数据使用新下载的公开数据，使用仓库内 `data/tokenizer/zgcm-1-official/` 的官方
+训练数据使用新下载的公开数据，使用仓库内 `data/tokenizer/` 的官方
 tokenizer 和 `chat_template.jinja` 重新编码。该目录包含 MIT 许可证和来源说明，clone
 仓库后不需要再次下载 tokenizer。模型从随机权重开始，不加载任何上游模型权重。架构参考和数据来源会记录
 在实验文档中，运行代码和模型名称使用 Meridian 的中性命名。
@@ -29,7 +29,7 @@ tokenizer 和 `chat_template.jinja` 重新编码。该目录包含 MIT 许可证
 默认直接使用仓库内的 tokenizer：
 
 ```bash
-export TOKENIZER_ROOT="$PROJECT_ROOT/data/tokenizer/zgcm-1-official"
+export TOKENIZER_ROOT="$PROJECT_ROOT/data/tokenizer"
 test -s "$TOKENIZER_ROOT/tokenizer.json"
 test -s "$TOKENIZER_ROOT/chat_template.jinja"
 ```

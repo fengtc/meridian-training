@@ -8,7 +8,7 @@ source "$(dirname "$0")/common.sh"
 usage() {
   cat <<'EOF'
 用法：
-  scripts/download-data.sh tokenizer /path/to/zgcm-1-official
+  scripts/download-data.sh tokenizer /path/to/tokenizer
   scripts/download-data.sh ultra-fineweb
   scripts/download-data.sh ultra-fineweb-l3
   scripts/download-data.sh math

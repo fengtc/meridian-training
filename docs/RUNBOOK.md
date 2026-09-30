@@ -57,7 +57,7 @@ python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple modelscope
 cd /home/paratera/meridian-training
 source .venv/bin/activate
 export MERIDIAN_DATA_ROOT="$HOME/meridian-data"
-export TOKENIZER_ROOT="$PROJECT_ROOT/data/tokenizer/zgcm-1-official"
+export TOKENIZER_ROOT="$PROJECT_ROOT/data/tokenizer"
 export DATA_ROOT="$MERIDIAN_DATA_ROOT/source-datasets"
 export MERIDIAN_RUN_ROOT="$MERIDIAN_DATA_ROOT/training-runs"
 mkdir -p "$TOKENIZER_ROOT" "$DATA_ROOT" "$MERIDIAN_RUN_ROOT"
