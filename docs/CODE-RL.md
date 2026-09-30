@@ -37,3 +37,16 @@ GRPO policy-update loop. Meridian does not claim that loop is implemented by
 the local pretraining entrypoint. A 2-GPU policy trainer must be added after
 the reward pilot is passing; it should use the prepared JSONL and this reward
 contract rather than treating RL rows as ordinary SFT data.
+
+The repository also includes a bounded single-host GRPO pilot. It samples a
+group of completions per prompt, scores them with `CodeReward`, normalizes the
+group rewards, and applies a policy-gradient update:
+
+```bash
+export CODE_RL_CHECKPOINT=/mnt/meridian-data/checkpoints/stage2/checkpoints
+export CODE_RL_INPUT=/mnt/meridian-data/rl/code-train-10k.jsonl
+./scripts/run-code-grpo.sh --gpu 2 --steps 100 --group-size 4 --max-new-tokens 256
+```
+
+Rollout runs in the same processes as training and uses the local subprocess
+checker, so this is a 2-GPU pilot rather than a production multi-tenant sandbox.
