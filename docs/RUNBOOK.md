@@ -57,16 +57,12 @@ python -m pip install -i https://pypi.mirrors.ustc.edu.cn/simple modelscope
 cd /home/paratera/meridian-training
 source .venv/bin/activate
 export MERIDIAN_DATA_ROOT="$HOME/meridian-data"
-export TOKENIZER_ROOT="$MERIDIAN_DATA_ROOT/tokenizers/official"
+export TOKENIZER_ROOT="$PROJECT_ROOT/data/tokenizer/zgcm-1-official"
 export DATA_ROOT="$MERIDIAN_DATA_ROOT/source-datasets"
 export MERIDIAN_RUN_ROOT="$MERIDIAN_DATA_ROOT/training-runs"
 mkdir -p "$TOKENIZER_ROOT" "$DATA_ROOT" "$MERIDIAN_RUN_ROOT"
 
-# 先查找官方文件所在目录，再把下面环境变量设置为实际目录。
-find "$HOME" -type f \( -name tokenizer.json -o -name chat_template.jinja \) 2>/dev/null | head -30
-export TOKENIZER_SOURCE="$HOME/ZGCM-Training-Lab/data/tokenizer/zgcm-1-official"
-test -s "$TOKENIZER_SOURCE/tokenizer.json" && test -s "$TOKENIZER_SOURCE/chat_template.jinja"
-./scripts/download-data.sh tokenizer "$TOKENIZER_SOURCE"
+test -s "$TOKENIZER_ROOT/tokenizer.json" && test -s "$TOKENIZER_ROOT/chat_template.jinja"
 ./scripts/preflight.sh
 ```
 
@@ -132,27 +128,42 @@ SFT 会额外生成 `sft_text_document.mask.bin` 和 `.mask.idx`，mask 为 1 �
 
 ## 6. 训练 Stage 1、Stage 2 和 SFT
 
-Stage 1 从随机初始化开始：
+Stage 1 从随机初始化开始（双卡）：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 ./scripts/run-stage.sh stage1 2>&1 | tee "$MERIDIAN_RUN_ROOT/stage1/train.log"
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 src/meridian_training/train.py \
+  --stage stage1 --config configs/model-500m.yaml \
+  --dataset-prefix "$MERIDIAN_RUN_ROOT/stage1/stage1_text_document" \
+  --output-root "$MERIDIAN_RUN_ROOT/stage1" --tokenizer-root "$TOKENIZER_ROOT" \
+  --target-tokens 2000000000 2>&1 | tee "$MERIDIAN_RUN_ROOT/stage1/train.log"
 ```
 
 Stage 1 完成后，确认 checkpoint 存在，再从它继续 Stage 2：
 
 ```bash
-test -s "$MERIDIAN_RUN_ROOT/stage1/checkpoints/stage1-final.pt"
-CUDA_VISIBLE_DEVICES=0 ./scripts/run-stage.sh stage2 2>&1 | tee "$MERIDIAN_RUN_ROOT/stage2/train.log"
+test -s "$MERIDIAN_RUN_ROOT/stage1/checkpoints/step-latest-rank0.pt"
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 src/meridian_training/train.py \
+  --stage stage2 --config configs/model-500m.yaml \
+  --dataset-prefix "$MERIDIAN_RUN_ROOT/stage2/stage2_text_document" \
+  --output-root "$MERIDIAN_RUN_ROOT/stage2" --tokenizer-root "$TOKENIZER_ROOT" \
+  --target-tokens 8000000000 --resume "$MERIDIAN_RUN_ROOT/stage1/checkpoints" \
+  2>&1 | tee "$MERIDIAN_RUN_ROOT/stage2/train.log"
 ```
 
 最后从 Stage 2 checkpoint 继续 SFT：
 
 ```bash
-test -s "$MERIDIAN_RUN_ROOT/stage2/checkpoints/stage2-final.pt"
-CUDA_VISIBLE_DEVICES=0 ./scripts/run-stage.sh sft 2>&1 | tee "$MERIDIAN_RUN_ROOT/sft/train.log"
+test -s "$MERIDIAN_RUN_ROOT/stage2/checkpoints/step-latest-rank0.pt"
 ```
 
-默认目标分别是 20M、80M 和 1M assistant tokens，micro batch 为 1、梯度累积为 2、每步 4096 tokens、BF16、AdamW、cosine learning rate。训练中断后可以重新执行同一阶段；Stage 2 和 SFT 的续训来源仍由脚本固定指向前一阶段最终 checkpoint。
+训练入口通过 `--gpu N` 选择 GPU 数量，例如：
+
+```bash
+./scripts/run-stage.sh stage1 --gpu 2
+./scripts/run-stage.sh stage2 --gpu 4
+```
+
+默认目标分别是 2B、8B 和 1B assistant tokens，micro batch 为 1、梯度累积为 8、每步 token 数由 GPU 数量决定、BF16、AdamW、cosine learning rate。训练中断后可以重新执行同一阶段；Stage 2 和 SFT 的续训来源仍由脚本固定指向前一阶段最终 checkpoint。
 
 ## 7. 中文对话测试
 
@@ -169,14 +180,14 @@ python -m meridian_training.chat \
 再测试简单事实和数学问题：
 
 ```bash
-python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoints/sft-final.pt" --tokenizer-root "$TOKENIZER_ROOT" --prompt '1+1 等于多少？'
-python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoints/sft-final.pt" --tokenizer-root "$TOKENIZER_ROOT" --prompt '中国的首都是哪里？'
+python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoints/step-latest-rank0.pt" --config configs/model-500m.yaml --tokenizer-root "$TOKENIZER_ROOT" --prompt '1+1 等于多少？'
+python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoints/step-latest-rank0.pt" --config configs/model-500m.yaml --tokenizer-root "$TOKENIZER_ROOT" --prompt '中国的首都是哪里？'
 ```
 
 也可以进入交互式输入：
 
 ```bash
-python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoints/sft-final.pt" --tokenizer-root "$TOKENIZER_ROOT"
+python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoints/step-latest-rank0.pt" --config configs/model-500m.yaml --tokenizer-root "$TOKENIZER_ROOT"
 ```
 
 这是约 150M 参数、总预训练 100M tokens 的快速实验模型，回答不稳定、重复或答错都属于预期现象。对话测试的目的首先是确认 tokenizer、checkpoint、模型结构和推理流程已经连通。
@@ -185,9 +196,9 @@ python -m meridian_training.chat --checkpoint "$MERIDIAN_RUN_ROOT/sft/checkpoint
 
 ```text
 ~/meridian-data/training-runs/
-├── stage1/checkpoints/stage1-final.pt
-├── stage2/checkpoints/stage2-final.pt
-├── sft/checkpoints/sft-final.pt
+├── stage1/checkpoints/step-latest-rank{0,1}.pt
+├── stage2/checkpoints/step-latest-rank{0,1}.pt
+├── sft/checkpoints/step-latest-rank{0,1}.pt
 └── rl/rl_text_document.{bin,idx,metadata.jsonl}
 ```
 

@@ -15,9 +15,9 @@ out="$MERIDIAN_RUN_ROOT/$stage"
 mkdir -p "$out"
 mode=pretrain
 target=0
-if [[ "$stage" == stage1 ]]; then target=20000000; fi
-if [[ "$stage" == stage2 ]]; then target=80000000; fi
-if [[ "$stage" == sft ]]; then mode=sft; target=1000000; fi
+if [[ "$stage" == stage1 ]]; then target="${DATA_STAGE1_TARGET_TOKENS:-20000000}"; fi
+if [[ "$stage" == stage2 ]]; then target="${DATA_STAGE2_TARGET_TOKENS:-80000000}"; fi
+if [[ "$stage" == sft ]]; then mode=sft; target="${DATA_SFT_TARGET_TOKENS:-1000000}"; fi
 if [[ "$stage" == rl ]]; then mode=rl; target=0; fi
 
 exec "$PYTHON_BIN" src/meridian_training/retokenize.py \

@@ -11,7 +11,8 @@ import torch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "third_party" / "Megatron-LM"))
 from tokenizers import Tokenizer
-from meridian_training.train import make_model, SEQ
+from meridian_training.train import build_model
+import yaml
 from megatron.core import parallel_state
 from megatron.core.tensor_parallel.random import model_parallel_cuda_manual_seed
 
@@ -31,6 +32,7 @@ def render_prompt(root: Path, messages: list[dict]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--checkpoint", required=True, type=Path)
+    ap.add_argument("--config", required=True, type=Path)
     ap.add_argument("--tokenizer-root", required=True, type=Path)
     ap.add_argument("--prompt")
     ap.add_argument("--max-new-tokens", type=int, default=128)
@@ -39,6 +41,7 @@ def main() -> int:
     if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
         raise SystemExit("需要支持 BF16 的 CUDA 环境")
     tok = Tokenizer.from_file(str(args.tokenizer_root / "tokenizer.json"))
+    seq = int(yaml.safe_load(args.config.read_text()).get("sequence_length", 2048))
     eos = tok.token_to_id("<|endoftext|>")
     if eos is None:
         eos = tok.token_to_id("<|eos|>")
@@ -49,15 +52,15 @@ def main() -> int:
     torch.distributed.init_process_group("nccl", rank=0, world_size=1)
     parallel_state.initialize_model_parallel(1, 1)
     model_parallel_cuda_manual_seed(42)
-    model = make_model(tok.get_vocab_size(with_added_tokens=True))
+    model = build_model(tok.get_vocab_size(with_added_tokens=True), yaml.safe_load(args.config.read_text()))
     state = torch.load(args.checkpoint, map_location="cuda", weights_only=False)
     model.load_state_dict(state["model"])
     model.eval()
     prompt = args.prompt or input("用户：")
     messages = [{"role": "user", "content": prompt}]
     ids = tok.encode(render_prompt(args.tokenizer_root, messages)).ids
-    if len(ids) >= SEQ:
-        ids = ids[-(SEQ - 1):]
+    if len(ids) >= seq:
+        ids = ids[-(seq - 1):]
     generated = list(ids)
     with torch.inference_mode():
         for _ in range(args.max_new_tokens):
@@ -71,7 +74,7 @@ def main() -> int:
                 probs = torch.softmax(logits / args.temperature, dim=-1)
                 next_id = int(torch.multinomial(probs, 1).item())
             generated.append(next_id)
-            if next_id == eos or len(generated) >= SEQ:
+            if next_id == eos or len(generated) >= seq:
                 break
     answer = tok.decode(generated[len(ids):], skip_special_tokens=False)
     print(f"助手：{answer}")

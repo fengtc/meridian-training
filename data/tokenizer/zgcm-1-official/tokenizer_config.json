@@ -1,0 +1,14 @@
+{
+  "backend": "tokenizers",
+  "clean_up_tokenization_spaces": false,
+  "do_lower_case": false,
+  "eos_token": "<|endoftext|>",
+  "is_local": false,
+  "local_files_only": false,
+  "model_max_length": 262144,
+  "model_specific_special_tokens": {},
+  "pad_token": "<|endoftext|>",
+  "padding_side": "left",
+  "remove_space": false,
+  "tokenizer_class": "PreTrainedTokenizerFast"
+}

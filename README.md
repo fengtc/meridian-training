@@ -11,18 +11,31 @@ Meridian 是一个独立、可扩展的语言模型训练项目。项目名称�
 推理模型：Meridian-Reasoning
 ```
 
-本项目当前在 **DGX Spark GB10** 上执行训练。后续可以扩展模型层数、hidden size、
-训练数据量，并切换到一张或多张 GPU；项目名称和模型名称不需要改变。
+本项目支持 DGX Spark GB10、双卡 RTX 5090 等 CUDA 主机。当前正式配置为
+`configs/model-500m.yaml`：约 505M 参数、2048 序列长度、BF16、DDP 数据并行。
 
 ## 来源说明
 
-当前基础模型采用公开混合注意力设计作为架构参考：16 层、hidden size 576、9 个
-attention heads、3 个 query groups、FFN 1664、局部窗口 128、全局层 4/9/15、
-上下文长度 2048、BF16。
+当前基础模型采用 24 层、hidden size 1024、16 个 attention heads、4 个 query
+groups、FFN 3840、局部窗口 128、全局层 4/9/15/21、上下文长度 2048、BF16。
 
-训练数据来自 MiniCPM 数据集，使用配置的官方 tokenizer 和 `chat_template.jinja`
-重新编码。模型从随机权重开始，不加载任何上游模型权重。架构参考和数据来源会记录
+训练数据使用新下载的公开数据，使用仓库内 `data/tokenizer/zgcm-1-official/` 的官方
+tokenizer 和 `chat_template.jinja` 重新编码。该目录包含 MIT 许可证和来源说明，clone
+仓库后不需要再次下载 tokenizer。模型从随机权重开始，不加载任何上游模型权重。架构参考和数据来源会记录
 在实验文档中，运行代码和模型名称使用 Meridian 的中性命名。
+
+## Tokenizer
+
+默认直接使用仓库内的 tokenizer：
+
+```bash
+export TOKENIZER_ROOT="$PROJECT_ROOT/data/tokenizer/zgcm-1-official"
+test -s "$TOKENIZER_ROOT/tokenizer.json"
+test -s "$TOKENIZER_ROOT/chat_template.jinja"
+```
+
+如果实验需要另一份兼容 tokenizer，可以通过 `TOKENIZER_ROOT` 覆盖，但必须把
+`tokenizer.json`、`chat_template.jinja`、来源说明和 SHA256 写入实验 manifest。
 
 ## 依赖边界
 
@@ -96,8 +109,10 @@ RL metadata 保存 `uuid`、`domain`、`source`、`query`、`ground_truth` 和 p
 
 ## 当前训练入口
 
-首轮在 DGX Spark GB10 上使用单进程、micro batch 1、gradient accumulation 2，
-每个 optimizer step 处理 4096 tokens。确认单 GPU 流程后，再扩展多 GPU 数据并行。
+训练入口读取 YAML，支持双卡 DDP、rank 分片、梯度累积、Stage 1/Stage 2/SFT、每
+rank checkpoint 和断点恢复。正式预训练配额为 Stage 1 2B + Stage 2 8B tokens；
+先运行 `scripts/pilot-20m.sh` 完成 20M 双卡验证。下载脚本支持
+`scripts/download-data.sh stage1-target -2B` 这样的 token 目标参数。
 
 完整阶段、数据来源和 checkpoint 续训规则见
 [docs/PLAN.md](docs/PLAN.md)。

@@ -10,7 +10,9 @@ VENV_ROOT="${VENV_ROOT:-$PROJECT_ROOT/.venv}"
 PYTHON_BIN="${PYTHON_BIN:-$VENV_ROOT/bin/python}"
 
 export PROJECT_ROOT MERIDIAN_DATA_ROOT TOKENIZER_ROOT DATA_ROOT MERIDIAN_RUN_ROOT VENV_ROOT PYTHON_BIN
-export PYTHONPATH="$PROJECT_ROOT/third_party/Megatron-LM:${PYTHONPATH:-}"
+if [[ -d "$PROJECT_ROOT/third_party/Megatron-LM/megatron/core/tensor_parallel" ]]; then
+  export PYTHONPATH="$PROJECT_ROOT/third_party/Megatron-LM:${PYTHONPATH:-}"
+fi
 
 cd "$PROJECT_ROOT"
 

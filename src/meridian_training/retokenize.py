@@ -20,7 +20,9 @@ from tokenizers import Tokenizer
 
 ROOT = Path(__file__).resolve().parents[2]
 import sys
-sys.path.insert(0, str(ROOT / "third_party" / "Megatron-LM"))
+MEGATRON_ROOT = ROOT / "third_party" / "Megatron-LM"
+if (MEGATRON_ROOT / "megatron" / "core" / "tensor_parallel").is_dir():
+    sys.path.insert(0, str(MEGATRON_ROOT))
 from megatron.core.datasets.indexed_dataset import IndexedDatasetBuilder
 
 

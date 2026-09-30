@@ -1,0 +1,24 @@
+name: Meridian-500M
+status: READY_FOR_PILOT
+vocab_size: 155136
+parameters_target: 504940544
+num_layers: 24
+hidden_size: 1024
+num_attention_heads: 16
+num_query_groups: 4
+ffn_hidden_size: 3840
+normalization: RMSNorm
+activation: SwiGLU
+position_embedding: RoPE
+rotary_base: 10000
+share_embeddings_and_output_weights: true
+attention:
+  local_window: 128
+  global_layers_one_based: [4, 9, 15, 21]
+precision: bf16
+sequence_length: 2048
+parallelism:
+  tensor_parallel: 1
+  pipeline_parallel: 1
+  context_parallel: 1
+  data_parallel: 2

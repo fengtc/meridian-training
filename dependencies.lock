@@ -3,4 +3,5 @@
 megatron_lm_repository=https://github.com/NVIDIA/Megatron-LM.git
 megatron_lm_ref=8ddd17988872764c1081ec6df14c2af9a964d859
 torch_policy=torch 2.14.0+cu130（ARM64，已在 DGX Spark GB10 验证；通过 USTC PyPI 源安装）
+megatron_core=megatron-core==0.19.2（通过 PyPI 安装；用于 IndexedDataset、并行模块和训练入口）
 python=>=3.10
