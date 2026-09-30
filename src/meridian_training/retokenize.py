@@ -10,6 +10,7 @@ import argparse
 import glob
 import hashlib
 import json
+from collections.abc import Mapping
 import math
 from pathlib import Path
 from typing import Iterable
@@ -24,6 +25,18 @@ MEGATRON_ROOT = ROOT / "third_party" / "Megatron-LM"
 if (MEGATRON_ROOT / "megatron" / "core" / "tensor_parallel").is_dir():
     sys.path.insert(0, str(MEGATRON_ROOT))
 from megatron.core.datasets.indexed_dataset import IndexedDatasetBuilder
+
+_HF_TOKENIZER_CACHE: dict[str, object] = {}
+
+
+def hf_tokenizer(root: Path):
+    key = str(root.resolve())
+    if key not in _HF_TOKENIZER_CACHE:
+        from transformers import AutoTokenizer
+        _HF_TOKENIZER_CACHE[key] = AutoTokenizer.from_pretrained(
+            key, local_files_only=True, trust_remote_code=False
+        )
+    return _HF_TOKENIZER_CACHE[key]
 
 
 def files(pattern: str) -> list[Path]:
@@ -104,8 +117,7 @@ def render(tokenizer_root: Path, tokenizer: Tokenizer, messages: list[dict], eos
     assistant mask. A strict fallback handles the documented ZGCM format only.
     """
     try:
-        from transformers import AutoTokenizer
-        hf = AutoTokenizer.from_pretrained(str(tokenizer_root), local_files_only=True, trust_remote_code=False)
+        hf = hf_tokenizer(tokenizer_root)
         result = hf.apply_chat_template(messages, tokenize=True, add_generation_prompt=False,
                                         return_assistant_tokens_mask=True, return_dict=True)
         ids = list(result["input_ids"])
@@ -141,11 +153,14 @@ def render_rl_prompt(tokenizer_root: Path, tokenizer: Tokenizer, query: str | li
     """Render an RL query with the official template and leave generation open."""
     messages = query if isinstance(query, list) else [{"role": "user", "content": query}]
     try:
-        from transformers import AutoTokenizer
-        hf = AutoTokenizer.from_pretrained(
-            str(tokenizer_root), local_files_only=True, trust_remote_code=False
-        )
+        hf = hf_tokenizer(tokenizer_root)
         ids = hf.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)
+        if isinstance(ids, Mapping):
+            ids = ids.get("input_ids")
+        if isinstance(ids, torch.Tensor):
+            ids = ids.tolist()
+        if ids and isinstance(ids[0], list):
+            ids = ids[0]
         if ids:
             return list(ids)
     except Exception:
@@ -220,7 +235,7 @@ def main() -> int:
     mask_builder = IndexedDatasetBuilder(str(out) + ".mask.bin", dtype=np.int8) if args.mode == "sft" else None
     metadata_path = Path(str(out) + ".metadata.jsonl") if args.mode == "rl" else None
     metadata_stream = metadata_path.open("w", encoding="utf-8") if metadata_path else None
-    sequences = assistant_tokens = packed_assistant_tokens = documents = 0
+    sequences = assistant_tokens = packed_assistant_tokens = documents = skipped_long = 0
     for row in records(args.input):
         if args.mode == "pretrain":
             ids = tokenizer.encode(text_of(row)).ids + [eos]
@@ -234,12 +249,10 @@ def main() -> int:
             ids = render_rl_prompt(root, tokenizer, query)
             masks = [0] * len(ids)
             if len(ids) > args.sequence_length:
-                # Do not silently destroy long-context evidence. The caller can
-                # raise sequence_length for this dataset before rerunning.
-                raise RuntimeError(
-                    f"RL prompt {row.get('uuid', row.get('id', documents))} has "
-                    f"{len(ids)} tokens > sequence_length={args.sequence_length}"
-                )
+                # RL prompts are standalone requests. Skip overlong requests
+                # rather than silently truncating their problem statement.
+                skipped_long += 1
+                continue
         if not ids:
             continue
         documents += 1
@@ -306,6 +319,7 @@ def main() -> int:
         "assistant_tokens": packed_assistant_tokens,
         "metadata": str(metadata_path) if metadata_path else None,
         "documents": documents,
+        "skipped_long_prompts": skipped_long,
         "tokenizer": str(tok_path),
         "tokenizer_sha256": sha(tok_path),
         "chat_template": str(template_path),
