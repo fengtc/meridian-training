@@ -51,8 +51,9 @@ if [[ "$stage" == stage2 || "$stage" == sft ]]; then
   [[ -f "${resume[1]}/step-latest-rank0.pt" ]] || { echo "缺少续训 checkpoint：${resume[1]}/step-latest-rank0.pt" >&2; exit 1; }
 fi
 
+gradient_accumulation="${MERIDIAN_GRADIENT_ACCUMULATION:-8}"
 exec "$VENV_ROOT/bin/torchrun" --standalone --nproc_per_node="$gpu_count" \
   src/meridian_training/train.py \
   --stage "$stage" --config "$config" --dataset-prefix "$dataset" --output-root "$run_dir" \
   --tokenizer-root "$TOKENIZER_ROOT" --target-tokens "$target" \
-  "${resume[@]}" "${runner_args[@]}"
+  "${resume[@]}" --gradient-accumulation "$gradient_accumulation" "${runner_args[@]}"

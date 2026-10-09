@@ -1,6 +1,16 @@
 # Meridian 实操运行手册
 
-本文按 DGX Spark GB10、单张可见 GPU 编写。命令从空环境开始，默认使用当前用户家目录下的 `~/meridian-data` 保存数据和检查点；如果磁盘位置不同，只需要修改第二步的路径变量。项目代码参考 ZGCM 的模型设计，训练数据来自 OpenBMB/MiniCPM 数据集，模型从随机权重开始训练。
+本文分为两种硬件 profile：DGX Spark GB10 单卡 ARM64，以及双 RTX 5090 x86_64。先选择对应 profile，再执行后续命令。项目代码参考 ZGCM 的模型设计，训练数据来自 OpenBMB/MiniCPM 数据集，模型从随机权重开始训练。
+
+设备选择：
+
+```bash
+# DGX Spark GB10
+source configs/devices/dgx-spark-gb10.env
+
+# 双 RTX 5090
+source configs/devices/rtx5090-2.env
+```
 
 ## 1. 获取代码
 
@@ -128,26 +138,21 @@ SFT 会额外生成 `sft_text_document.mask.bin` 和 `.mask.idx`，mask 为 1 �
 
 ## 6. 训练 Stage 1、Stage 2 和 SFT
 
+`run-stage.sh` 使用当前 profile 的 GPU 数量；也可以显式传入 `--gpu 1` 或 `--gpu 2`。SFT 目标是 1B assistant tokens，编码后的 packed token 数以 manifest 为准。SFT 必须保留官方 `tokenizer_config.json`、`special_tokens_map.json` 和 `chat_template.jinja`，编码器和推理入口使用同一套模板。
+
 Stage 1 从随机初始化开始（双卡）：
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 src/meridian_training/train.py \
-  --stage stage1 --config configs/model-500m.yaml \
-  --dataset-prefix "$MERIDIAN_RUN_ROOT/stage1/stage1_text_document" \
-  --output-root "$MERIDIAN_RUN_ROOT/stage1" --tokenizer-root "$TOKENIZER_ROOT" \
-  --target-tokens 2000000000 2>&1 | tee "$MERIDIAN_RUN_ROOT/stage1/train.log"
+./scripts/run-stage.sh stage1 --gpu 2 \
+  --checkpoint-interval 1000 2>&1 | tee "$MERIDIAN_RUN_ROOT/stage1/train.log"
 ```
 
 Stage 1 完成后，确认 checkpoint 存在，再从它继续 Stage 2：
 
 ```bash
 test -s "$MERIDIAN_RUN_ROOT/stage1/checkpoints/step-latest-rank0.pt"
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 src/meridian_training/train.py \
-  --stage stage2 --config configs/model-500m.yaml \
-  --dataset-prefix "$MERIDIAN_RUN_ROOT/stage2/stage2_text_document" \
-  --output-root "$MERIDIAN_RUN_ROOT/stage2" --tokenizer-root "$TOKENIZER_ROOT" \
-  --target-tokens 8000000000 --resume "$MERIDIAN_RUN_ROOT/stage1/checkpoints" \
-  2>&1 | tee "$MERIDIAN_RUN_ROOT/stage2/train.log"
+./scripts/run-stage.sh stage2 --gpu 2 \
+  --checkpoint-interval 1000 2>&1 | tee "$MERIDIAN_RUN_ROOT/stage2/train.log"
 ```
 
 最后从 Stage 2 checkpoint 继续 SFT：

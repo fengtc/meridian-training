@@ -19,7 +19,7 @@
 |---|---:|---|---|
 | Stage 1 | 2.0B | 高质量 Web/中文/英文混合 | 初始预训练与稳定性建立 |
 | Stage 2 | 8.0B | 固定配比的 Web、知识、数学、代码混合数据 | 从 Stage 1 checkpoint 连续学习 |
-| SFT | 另行指定 | 对话/指令数据，assistant-only mask | 预训练结束后的监督微调 |
+| SFT | 1.0B assistant tokens（编码后约 1.637B packed tokens） | UltraData-SFT-2605，对话/指令数据，assistant-only mask | 预训练结束后的监督微调 |
 
 建议总配比：中文 Web 35%（3.5B）、英文 Web 30%（3B）、知识/PDF 10%（1B）、数学 15%（1.5B）、代码 10%（1B）。这是本次实验的建议，不是上游已验证的最优配方；各类按统一 tokenizer 编码后的 token 配额执行，不能按文件数分配。中文来自 Ultra-FineWeb，其他类别优先复用本地 full_text 分片。现有分片覆盖不同来源，先做归类和去重再采样；不足类别需继续补齐分片，不用重复样本冒充独立语料。
 
@@ -33,6 +33,8 @@
 
 Stage 1 到 Stage 2 使用 checkpoint 续训，但不重置模型权重。Stage 2 是一次连续的 8B-token 训练，不拆成子阶段、不要求中途切换数据或学习率。LR warmup 仅指全程最初 2% steps 的学习率爬升，不是独立训练阶段；不要把它命名为 warmup 数据阶段。正式总量按 2B + 8B = 10B 计算；ceil 到完整 batch 后的多余 token 必须在数据准备或训练账本中明确处理。
 
+本次实际实验使用双 RTX 5090 完成 Stage 1、Stage 2 和 SFT。SFT 首次编码使用了简化 role 模板，后续已改为官方 `chat_template.jinja`，补齐 `tokenizer_config.json`/`special_tokens_map.json`，并按完整模板生成 assistant-only mask；正式结果应以官方模板重编码后的 SFT checkpoint 为准。
+
 耗时示例仅用于预算：实测总吞吐 5k/10k/20k tokens/s 时，纯训练分别约 23.1/11.6/5.8 天，额外留 15% 给评估和 checkpoint。两卡显存不能简单视为 64GB 单卡；DDP 每卡保存完整参数、梯度和优化器状态，长词表 logits/activation 是显存重点。建议 fused/chunked CE、activation checkpointing，并实测 SDPA/Flash 与局部 attention 的兼容性。
 
 新增 10B uint32 token 数据约 40GB；原始语料、临时编码文件、验证集和 checkpoint 另计。预留至少 60GB 给 checkpoint/临时产物，下载前检查剩余空间，低于预算时停止扩充原始分片。
@@ -43,7 +45,7 @@ Stage 1 到 Stage 2 使用 checkpoint 续训，但不重置模型权重。Stage 
 
 ## 执行顺序
 
-1. 建立 x86_64 Python/CUDA 环境，运行两卡 CUDA、BF16、NCCL、P2P smoke test；不复用 DGX Spark 的 ARM wheel。
+1. 按设备选择环境：DGX Spark GB10 使用 `configs/devices/dgx-spark-gb10.env`（ARM64、厂商 PyTorch、单卡）；双 RTX 5090 使用 `configs/devices/rtx5090-2.env`（x86_64、CUDA/NCCL、2 卡），两者不共用 Python wheel。
 2. 复制官方 tokenizer，核对 vocab、EOS、SHA256；禁止使用 MiniCPM5 或其他 tokenizer。
 3. 下载公开数据的目标分片，和已有 `zgcm-data` 预训练 Parquet 合并，生成 `data-manifest.json`。
 4. 先编码 20M tokens，检查样本边界、无空文档、无异常超长样本；然后编码 100M tokens 并做双卡短跑。

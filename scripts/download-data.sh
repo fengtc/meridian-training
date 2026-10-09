@@ -23,6 +23,10 @@ usage() {
   scripts/download-data.sh all-target
   scripts/download-data.sh all
 
+设备 profile（训练硬件不同，数据目录和 GPU 数量不要混用）：
+  source configs/devices/dgx-spark-gb10.env
+  source configs/devices/rtx5090-2.env
+
 也可以只下载指定文件匹配项：
   scripts/download-data.sh sft --include 'data/no_think/Chinese-general/*part-000*.jsonl'
 
@@ -110,6 +114,8 @@ copy_tokenizer() {
   mkdir -p "$TOKENIZER_ROOT"
   cp -f "$source/tokenizer.json" "$TOKENIZER_ROOT/tokenizer.json"
   cp -f "$source/chat_template.jinja" "$TOKENIZER_ROOT/chat_template.jinja"
+  [[ -s "$source/tokenizer_config.json" ]] && cp -f "$source/tokenizer_config.json" "$TOKENIZER_ROOT/tokenizer_config.json"
+  [[ -s "$source/special_tokens_map.json" ]] && cp -f "$source/special_tokens_map.json" "$TOKENIZER_ROOT/special_tokens_map.json"
   echo "官方 tokenizer 已复制到 $TOKENIZER_ROOT"
 }
 
