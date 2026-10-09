@@ -118,12 +118,30 @@ def render(tokenizer_root: Path, tokenizer: Tokenizer, messages: list[dict], eos
     """
     try:
         hf = hf_tokenizer(tokenizer_root)
-        result = hf.apply_chat_template(messages, tokenize=True, add_generation_prompt=False,
-                                        return_assistant_tokens_mask=True, return_dict=True)
-        ids = list(result["input_ids"])
-        mask = list(result.get("assistant_masks") or result.get("assistant_mask") or [])
-        if len(ids) == len(mask) and any(mask):
-            return ids, mask
+        rendered = hf.apply_chat_template(messages, tokenize=False, add_generation_prompt=False)
+        encoded = tokenizer.encode(rendered)
+        ids = list(encoded.ids)
+        mask = [0] * len(ids)
+        cursor = 0
+        for message in messages:
+            if message["role"] != "assistant":
+                continue
+            body = str(message["content"]).strip()
+            if not body:
+                continue
+            marker = rendered.find('<|assistant|>', cursor)
+            if marker < 0:
+                raise ValueError('assistant marker missing from rendered template')
+            start = rendered.find(body, marker + len('<|assistant|>'))
+            if start < 0:
+                raise ValueError('assistant body missing from rendered template')
+            end = start + len(body)
+            for i, (left, right) in enumerate(encoded.offsets):
+                if left < end and right > start:
+                    mask[i] = 1
+            cursor = end
+        if any(mask):
+            return ids + [eos_id], mask + [1]
     except Exception:
         pass
 

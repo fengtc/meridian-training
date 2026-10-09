@@ -3,13 +3,10 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import torch
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "third_party" / "Megatron-LM"))
 from tokenizers import Tokenizer
 from meridian_training.train import build_model
 import yaml
@@ -56,28 +53,40 @@ def main() -> int:
     state = torch.load(args.checkpoint, map_location="cuda", weights_only=False)
     model.load_state_dict(state["model"])
     model.eval()
-    prompt = args.prompt or input("用户：")
-    messages = [{"role": "user", "content": prompt}]
-    ids = tok.encode(render_prompt(args.tokenizer_root, messages)).ids
-    if len(ids) >= seq:
-        ids = ids[-(seq - 1):]
-    generated = list(ids)
-    with torch.inference_mode():
-        for _ in range(args.max_new_tokens):
-            x = torch.tensor([generated], dtype=torch.long, device="cuda")
-            pos = torch.arange(x.shape[1], device="cuda").unsqueeze(0)
-            mask = torch.triu(torch.ones((1, 1, x.shape[1], x.shape[1]), device="cuda", dtype=torch.bool), 1)
-            logits = model(x, pos, mask)[:, -1, :].float()
-            if args.temperature <= 0:
-                next_id = int(logits.argmax(dim=-1).item())
-            else:
-                probs = torch.softmax(logits / args.temperature, dim=-1)
-                next_id = int(torch.multinomial(probs, 1).item())
-            generated.append(next_id)
-            if next_id == eos or len(generated) >= seq:
+    def answer(prompt: str) -> str:
+        messages = [{"role": "user", "content": prompt}]
+        ids = tok.encode(render_prompt(args.tokenizer_root, messages)).ids
+        if len(ids) >= seq:
+            ids = ids[-(seq - 1):]
+        generated = list(ids)
+        with torch.inference_mode():
+            for _ in range(args.max_new_tokens):
+                x = torch.tensor([generated], dtype=torch.long, device="cuda")
+                pos = torch.arange(x.shape[1], device="cuda").unsqueeze(0)
+                mask = torch.triu(torch.ones((1, 1, x.shape[1], x.shape[1]), device="cuda", dtype=torch.bool), 1)
+                logits = model(x, pos, mask)[:, -1, :].float()
+                if args.temperature <= 0:
+                    next_id = int(logits.argmax(dim=-1).item())
+                else:
+                    probs = torch.softmax(logits / args.temperature, dim=-1)
+                    next_id = int(torch.multinomial(probs, 1).item())
+                generated.append(next_id)
+                if next_id == eos or len(generated) >= seq:
+                    break
+        return tok.decode(generated[len(ids):], skip_special_tokens=False)
+
+    if args.prompt is not None:
+        print(f"助手：{answer(args.prompt)}")
+    else:
+        while True:
+            try:
+                prompt = input("用户：").strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
                 break
-    answer = tok.decode(generated[len(ids):], skip_special_tokens=False)
-    print(f"助手：{answer}")
+            if not prompt or prompt.lower() in {"exit", "quit"}:
+                break
+            print(f"助手：{answer(prompt)}")
     torch.distributed.destroy_process_group()
     return 0
 
