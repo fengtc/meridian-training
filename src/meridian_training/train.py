@@ -28,6 +28,9 @@ def args():
     p.add_argument('--peak-lr', type=float, default=2e-4); p.add_argument('--min-lr', type=float, default=2e-5)
     p.add_argument('--warmup-ratio', type=float, default=0.02); p.add_argument('--weight-decay', type=float, default=0.1)
     p.add_argument('--grad-clip', type=float, default=1.0); p.add_argument('--checkpoint-interval', type=int, default=1000)
+    p.add_argument('--recompute-granularity', choices=('none','full'), default='full')
+    p.add_argument('--recompute-method', choices=('uniform','block'), default='uniform')
+    p.add_argument('--recompute-num-layers', type=int, default=1)
     return p.parse_args()
 
 def build_model(vocab, cfg):
@@ -41,7 +44,10 @@ def build_model(vocab, cfg):
         add_bias_linear=False, hidden_dropout=0.0, attention_dropout=0.0, attention_backend=AttnBackend.local,
         window_size=(int(cfg.get('attention', {}).get('local_window', 128)), 0), window_attn_skip_freq=pattern,
         bf16=True, params_dtype=torch.bfloat16, pipeline_dtype=torch.bfloat16, use_cpu_initialization=False,
-        init_method_std=0.02, layernorm_epsilon=1e-6)
+        init_method_std=0.02, layernorm_epsilon=1e-6,
+        recompute_granularity=getattr(build_model, '_recompute_granularity', 'full'),
+        recompute_method=getattr(build_model, '_recompute_method', 'uniform'),
+        recompute_num_layers=getattr(build_model, '_recompute_num_layers', 1))
     return GPTModel(config=tc, transformer_layer_spec=get_gpt_layer_local_spec(normalization='RMSNorm'),
         vocab_size=vocab, max_sequence_length=seq, position_embedding_type='rope', rotary_percent=1.0,
         rotary_base=int(cfg.get('rotary_base', 10000)), parallel_output=False,
@@ -59,7 +65,10 @@ def get_batch(ds, index, device, seq, mask_ds=None):
     return x, pos, attn, mask
 
 def main():
-    a = args(); cfg = yaml.safe_load(Path(a.config).read_text()); seq = int(cfg.get('sequence_length', 2048))
+    a = args(); build_model._recompute_granularity = a.recompute_granularity if a.recompute_granularity != 'none' else None
+    build_model._recompute_method = a.recompute_method
+    build_model._recompute_num_layers = a.recompute_num_layers
+    cfg = yaml.safe_load(Path(a.config).read_text()); seq = int(cfg.get('sequence_length', 2048))
     rank = int(os.environ.get('RANK', 0)); local = int(os.environ.get('LOCAL_RANK', rank)); world = int(os.environ.get('WORLD_SIZE', 1))
     if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported(): raise SystemExit('CUDA BF16 is required')
     torch.cuda.set_device(local); dist.init_process_group('nccl', rank=rank, world_size=world); parallel_state.initialize_model_parallel(1, 1)

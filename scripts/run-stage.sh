@@ -56,4 +56,7 @@ exec "$VENV_ROOT/bin/torchrun" --standalone --nproc_per_node="$gpu_count" \
   src/meridian_training/train.py \
   --stage "$stage" --config "$config" --dataset-prefix "$dataset" --output-root "$run_dir" \
   --tokenizer-root "$TOKENIZER_ROOT" --target-tokens "$target" \
-  "${resume[@]}" --gradient-accumulation "$gradient_accumulation" "${runner_args[@]}"
+  "${resume[@]}" --gradient-accumulation "$gradient_accumulation" \
+  --recompute-granularity "${MERIDIAN_RECOMPUTE_GRANULARITY:-full}" \
+  --recompute-method "${MERIDIAN_RECOMPUTE_METHOD:-uniform}" \
+  --recompute-num-layers "${MERIDIAN_RECOMPUTE_NUM_LAYERS:-1}" "${runner_args[@]}"
